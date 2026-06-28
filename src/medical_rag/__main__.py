@@ -39,6 +39,7 @@ def cmd_pipeline(args, settings: Settings):
     from . import load_data, embed
     load_data.run(settings)
     embed.run(settings)
+    print("\nPipeline complete. Run 'medical-rag query <question>' to query.")
 
 
 def build_parser() -> argparse.ArgumentParser:
