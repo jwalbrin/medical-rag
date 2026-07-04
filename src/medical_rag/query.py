@@ -4,7 +4,7 @@ import anthropic
 from sentence_transformers import SentenceTransformer
 
 from .config import Settings
-from .embed import get_store
+from .embed import ChromaStore, get_store
 
 
 SYSTEM_PROMPT = """You are a medical research assistant. Answer the question using only
@@ -12,10 +12,10 @@ the provided PubMed abstract excerpts. If the excerpts do not contain enough inf
 to answer confidently, say so. Cite the pubmed ID (pubid) of any excerpt you draw from."""
 
 
-def retrieve(question: str, settings: Settings) -> list[dict]:
+def retrieve(question: str, settings: Settings, store: ChromaStore | None = None) -> list[dict]:
     model = SentenceTransformer(settings.embed_model)
     query_embedding = model.encode(question).tolist()
-    store = get_store(settings)
+    store = store or get_store(settings)
     return store.search(query_embedding, n_results=settings.n_results)
 
 

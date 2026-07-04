@@ -1,10 +1,6 @@
-"""
-Stage 2: Embed documents from SQLite into a ChromaDB vector store.
-
-"""
+"""Stage 2: Embed documents from SQLite into a ChromaDB vector store."""
 
 import sqlite3
-from typing import Protocol
 
 import chromadb
 from sentence_transformers import SentenceTransformer
@@ -12,30 +8,10 @@ from sentence_transformers import SentenceTransformer
 from .config import Settings
 
 
-class VectorStore(Protocol):
-    def add(self, ids: list[str], texts: list[str], metadatas: list[dict]) -> None: ...
-    def search(self, query_embedding: list[float], n_results: int) -> list[dict]: ...
-
-
 class ChromaStore:
     def __init__(self, path: str, collection_name: str):
         self._client = chromadb.PersistentClient(path=path)
         self._col = self._client.get_or_create_collection(collection_name)
-
-    def add(self, ids: list[str], texts: list[str], metadatas: list[dict]) -> None:
-        # skip docs already in the store
-        existing = set(self._col.get(ids=ids)["ids"])
-        new = [
-            (id_, text, meta)
-            for id_, text, meta in zip(ids, texts, metadatas)
-            if id_ not in existing
-        ]
-        if not new:
-            return
-        new_ids, new_texts, new_metas = zip(*new)
-        self._col.add(
-            ids=list(new_ids), documents=list(new_texts), metadatas=list(new_metas)
-        )
 
     def search(self, query_embedding: list[float], n_results: int) -> list[dict]:
         results = self._col.query(
@@ -52,7 +28,7 @@ class ChromaStore:
         ]
 
 
-def get_store(settings: Settings) -> VectorStore:
+def get_store(settings: Settings) -> ChromaStore:
     return ChromaStore(str(settings.chroma_path), settings.collection_name)
 
 
@@ -84,15 +60,13 @@ def run(settings: Settings) -> None:
         batch_ids = ids[i : i + batch_size]
         batch_texts = texts[i : i + batch_size]
         batch_metas = metadatas[i : i + batch_size]
+
         embeddings = model.encode(batch_texts, show_progress_bar=False).tolist()
-        # ChromaStore.add computes embeddings from documents by default;
-        # pass pre-computed embeddings to avoid re-encoding
+
         existing = set(store._col.get(ids=batch_ids)["ids"])
         new = [
             (id_, emb, text, meta)
-            for id_, emb, text, meta in zip(
-                batch_ids, embeddings, batch_texts, batch_metas
-            )
+            for id_, emb, text, meta in zip(batch_ids, embeddings, batch_texts, batch_metas)
             if id_ not in existing
         ]
         if new:
