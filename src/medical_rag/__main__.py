@@ -9,7 +9,6 @@ Usage:
 """
 
 import argparse
-import sys
 
 from .config import Settings, settings as default_settings
 
@@ -22,21 +21,25 @@ def cmd_load(args, settings: Settings):
     if args.db:
         settings.db = args.db
     from . import load_data
+
     load_data.run(settings)
 
 
 def cmd_embed(args, settings: Settings):
     from . import embed
+
     embed.run(settings)
 
 
 def cmd_query(args, settings: Settings):
     from . import query
+
     query.run(settings, question=args.question)
 
 
 def cmd_pipeline(args, settings: Settings):
     from . import load_data, embed
+
     load_data.run(settings)
     embed.run(settings)
     print("\nPipeline complete. Run 'medical-rag query <question>' to query.")

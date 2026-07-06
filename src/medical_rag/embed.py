@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer
 
 from .config import Settings
 
+EMBED_BATCH_SIZE = 256
+
 
 class ChromaStore:
     def __init__(self, path: str, collection_name: str):
@@ -33,10 +35,12 @@ def get_store(settings: Settings) -> ChromaStore:
 
 
 def run(settings: Settings) -> None:
+
     print(f"Loading embedding model '{settings.embed_model}'...")
     model = SentenceTransformer(settings.embed_model)
     store = get_store(settings)
 
+    print(f"Fetching data from database...")
     conn = sqlite3.connect(settings.db)
     rows = conn.execute(
         "SELECT pubid, split, context_text, meshes, year FROM documents"
@@ -55,18 +59,19 @@ def run(settings: Settings) -> None:
         {"split": r[1], "meshes": r[3] or "", "year": r[4] or ""} for r in rows
     ]
 
-    batch_size = 256
-    for i in range(0, len(rows), batch_size):
-        batch_ids = ids[i : i + batch_size]
-        batch_texts = texts[i : i + batch_size]
-        batch_metas = metadatas[i : i + batch_size]
+    for i in range(0, len(rows), EMBED_BATCH_SIZE):
+        batch_ids = ids[i : i + EMBED_BATCH_SIZE]
+        batch_texts = texts[i : i + EMBED_BATCH_SIZE]
+        batch_metas = metadatas[i : i + EMBED_BATCH_SIZE]
 
         embeddings = model.encode(batch_texts, show_progress_bar=False).tolist()
 
         existing = set(store._col.get(ids=batch_ids)["ids"])
         new = [
             (id_, emb, text, meta)
-            for id_, emb, text, meta in zip(batch_ids, embeddings, batch_texts, batch_metas)
+            for id_, emb, text, meta in zip(
+                batch_ids, embeddings, batch_texts, batch_metas
+            )
             if id_ not in existing
         ]
         if new:
@@ -77,6 +82,6 @@ def run(settings: Settings) -> None:
                 documents=list(new_texts),
                 metadatas=list(new_metas),
             )
-        print(f"  {min(i + batch_size, len(rows))}/{len(rows)}", end="\r")
+        print(f"  {min(i + EMBED_BATCH_SIZE, len(rows))}/{len(rows)}", end="\r")
 
     print(f"\nDone. {len(rows)} documents embedded into '{settings.chroma_path}'.")
