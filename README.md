@@ -58,6 +58,59 @@ CLI args override `.env` values for a single run:
 medical-rag load --pql other.json --db other.db
 ```
 
+## Using a local LLM (llama.cpp)
+
+As an alternative to the Anthropic API you can serve a model locally via
+[llama.cpp](https://github.com/ggml-org/llama.cpp). It exposes an OpenAI-compatible
+HTTP API so no extra client library is needed.
+
+### 1. Configure .env
+
+Set the following in your `.env`:
+
+```ini
+LLM_BACKEND=llamacpp
+LLM_BASE_URL=http://localhost:8080
+LLM_MODEL=unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL   # HuggingFace model ref
+LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:full-cuda  # optional override
+```
+
+`HOST_PORT` is parsed automatically from `LLM_BASE_URL`, so there is no separate port variable.
+
+### 2. Start the server
+
+```bash
+scripts/serve_llm.sh
+```
+
+This pulls the image and model on first run (model cached in `~/.cache/huggingface`) then starts the server. To preview the docker command without running it:
+
+```bash
+scripts/serve_llm.sh --dry-run
+```
+
+Verify the server is ready:
+
+```bash
+curl http://localhost:8080/health
+```
+
+### 3. Query
+
+```bash
+medical-rag query "Which is the best acuity test for people with amblyopia?"
+```
+
+No API key required.
+
+### 4. Stop the server
+
+```bash
+scripts/stop_llm.sh
+```
+
+Switch back to Claude at any time by setting `LLM_BACKEND=anthropic` (the default).
+
 ## Adding dependencies
 
 ```bash
