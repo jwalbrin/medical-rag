@@ -15,9 +15,11 @@ to answer confidently, say so. Cite the pubmed ID (pubid) of any excerpt you dra
 
 
 def retrieve(question: str, settings: Settings, store: ChromaStore | None = None) -> list[dict]:
-    model = SentenceTransformer(settings.embed_model)
-    query_embedding = model.encode(question).tolist()
     store = store or get_store(settings)
+    embed_model = store.embed_model
+    if not embed_model:
+        raise RuntimeError("No embed_model found in collection metadata. Re-run 'medical-rag embed' to rebuild the index.")
+    query_embedding = SentenceTransformer(embed_model).encode(question).tolist()
     return store.search(query_embedding, n_results=settings.n_results)
 
 

@@ -11,9 +11,14 @@ EMBED_BATCH_SIZE = 256
 
 
 class ChromaStore:
-    def __init__(self, path: str, collection_name: str):
+    def __init__(self, path: str, collection_name: str, embed_model: str | None = None):
         self._client = chromadb.PersistentClient(path=path)
-        self._col = self._client.get_or_create_collection(collection_name)
+        metadata = {"embed_model": embed_model} if embed_model else None
+        self._col = self._client.get_or_create_collection(collection_name, metadata=metadata)
+
+    @property
+    def embed_model(self) -> str | None:
+        return (self._col.metadata or {}).get("embed_model")
 
     def search(self, query_embedding: list[float], n_results: int) -> list[dict]:
         results = self._col.query(
@@ -31,7 +36,7 @@ class ChromaStore:
 
 
 def get_store(settings: Settings) -> ChromaStore:
-    return ChromaStore(str(settings.chroma_path), settings.collection_name)
+    return ChromaStore(str(settings.chroma_path), settings.collection_name, settings.embed_model)
 
 
 def run(settings: Settings) -> None:
