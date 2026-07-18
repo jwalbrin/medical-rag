@@ -64,15 +64,25 @@ As an alternative to the Anthropic API you can serve a model locally via
 [llama.cpp](https://github.com/ggml-org/llama.cpp). It exposes an OpenAI-compatible
 HTTP API so no extra client library is needed.
 
-### 1. Configure .env
+### 1. Choose a model
 
-Set the following in your `.env`:
+Set `LLM_MODEL` in `.env` to any GGUF model on HuggingFace using the `repo:filename-prefix` format. Recommended options, roughly ordered by quality vs. speed:
+
+| Model | `LLM_MODEL` value | VRAM | Notes |
+|---|---|---|---|
+| Gemma 4 4B (default) | `unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL` | ~4 GB | Best quality, slower |
+| Qwen 2.5 3B | `bartowski/Qwen2.5-3B-Instruct-GGUF:Q4_K_M` | ~2 GB | Good balance of speed and quality |
+| Llama 3.2 3B | `bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M` | ~2 GB | Well-tested, reliable |
+| Phi-3.5 Mini 3.8B | `bartowski/Phi-3.5-mini-instruct-GGUF:Q4_K_M` | ~2.5 GB | Strong reasoning for its size |
+| Gemma 3 1B | `bartowski/gemma-3-1b-it-GGUF:Q4_K_M` | ~1 GB | Fastest, noticeable quality drop |
+
+### 2. Configure .env
 
 ```ini
 LLM_BACKEND=llamacpp
 LLM_BASE_URL=http://localhost:8080
-LLM_MODEL=unsloth/gemma-4-E4B-it-GGUF:UD-Q4_K_XL   # HuggingFace model ref
-LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:full-cuda  # optional override
+LLM_MODEL=bartowski/Qwen2.5-3B-Instruct-GGUF:Q4_K_M  # or any model from the table above
+LLAMACPP_IMAGE=ghcr.io/ggml-org/llama.cpp:full-cuda   # optional override
 ```
 
 `HOST_PORT` is parsed automatically from `LLM_BASE_URL`, so there is no separate port variable.
@@ -119,3 +129,8 @@ uv add --dev <package>  # add a dev-only dependency
 ```
 
 This updates both `pyproject.toml` and `uv.lock`. Commit both files.
+
+TODO
+Long form text
+- chunking strategies
+- reranker model
