@@ -4,21 +4,25 @@ import anthropic
 import urllib.request
 import json
 from sentence_transformers import SentenceTransformer
+from time import time
 
 from .config import Settings
 from .embed import ChromaStore, get_store
-
 
 SYSTEM_PROMPT = """You are a medical research assistant. Answer the question using only
 the provided PubMed abstract excerpts. If the excerpts do not contain enough information
 to answer confidently, say so. Cite the pubmed ID (pubid) of any excerpt you draw from."""
 
 
-def retrieve(question: str, settings: Settings, store: ChromaStore | None = None) -> list[dict]:
+def retrieve(
+    question: str, settings: Settings, store: ChromaStore | None = None
+) -> list[dict]:
     store = store or get_store(settings)
     embed_model = store.embed_model
     if not embed_model:
-        raise RuntimeError("No embed_model found in collection metadata. Re-run 'medical-rag embed' to rebuild the index.")
+        raise RuntimeError(
+            "No embed_model found in collection metadata. Re-run 'medical-rag embed' to rebuild the index."
+        )
     query_embedding = SentenceTransformer(embed_model).encode(question).tolist()
     return store.search(query_embedding, n_results=settings.n_results)
 
@@ -29,22 +33,32 @@ def _generate_anthropic(question: str, context: str, settings: Settings) -> str:
         model=settings.claude_model,
         max_tokens=1024,
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Abstracts:\n{context}\n\nQuestion: {question}"}],
+        messages=[
+            {
+                "role": "user",
+                "content": f"Abstracts:\n{context}\n\nQuestion: {question}",
+            }
+        ],
     )
     return message.content[0].text
 
 
 def _generate_llamacpp(question: str, context: str, settings: Settings) -> str:
     # llama.cpp server exposes an OpenAI-compatible /v1/chat/completions endpoint
-    payload = json.dumps({
-        "model": settings.llm_model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Abstracts:\n{context}\n\nQuestion: {question}"},
-        ],
-        "max_tokens": 1024,
-        "stream": False,
-    }).encode()
+    payload = json.dumps(
+        {
+            "model": settings.llm_model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"Abstracts:\n{context}\n\nQuestion: {question}",
+                },
+            ],
+            "max_tokens": 1024,
+            "stream": False,
+        }
+    ).encode()
     req = urllib.request.Request(
         f"{settings.llm_base_url}/v1/chat/completions",
         data=payload,
@@ -68,6 +82,8 @@ def run(settings: Settings, question: str) -> None:
     for i, h in enumerate(hits, 1):
         print(f"  {i}. pubid={h['id']} distance={h['distance']:.4f}")
 
+    tic = time()
     print("\nGenerating answer...\n")
     answer = generate(question, hits, settings)
     print(answer)
+    print(f"\nGeneration time: {time() - tic:.2f} seconds.")
